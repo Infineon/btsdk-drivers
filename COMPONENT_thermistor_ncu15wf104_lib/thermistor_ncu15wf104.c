@@ -64,16 +64,12 @@
 #define THERMISTOR_PIN  ADC_INPUT_P8                        /*CYW920735Q60EVB-01 has P8 connected to Thermistor*/
 #endif
 
-#ifdef CYW20721B1
-#define THERMISTOR_PIN  ADC_INPUT_P10                        /*CYW920721EVK-01 has P10 connected to Thermistor*/
-#endif
-
 #ifdef CYW20819A1
 #define THERMISTOR_PIN  ADC_INPUT_P8                        /*CYW920819EVB-02 has P8 connected to Thermistor*/
 #endif
 
 #ifdef CYW20820A1
-#define THERMISTOR_PIN  ADC_INPUT_P8                        /*CYW920819EVB-02 has P8 connected to Thermistor*/
+#define THERMISTOR_PIN  ADC_INPUT_P8                        /*CYW920820EVB-02 has P8 connected to Thermistor*/
 #endif
 
 #ifdef CYW20719B2
