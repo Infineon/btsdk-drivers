@@ -2,7 +2,7 @@
 
 ### Overview
 
-This repo contains driver libraries used in BTSDK2.0 and higher. The libraries included in this repo are:
+This repo contains driver libraries used in BTSDK 2.0 and higher. The libraries included in this repo are:
 
 * hsl\_rgb\_lib<br/>
     * Library to convert HSL Color to RGB Color values<br/>
@@ -21,6 +21,4 @@ This repo contains driver libraries used in BTSDK2.0 and higher. The libraries i
 
 
 * pir\_motion\_sensor\_lib<br/>
-    * PIR library (Motion Sensor) for Mesh kit (CYBT-213043-MESH)<br/>
-
-
+    * PIR (Passive Infrared Motion Sensor) library for Mesh kit (CYBT-213043-MESH)<br/>
