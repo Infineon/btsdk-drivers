@@ -46,41 +46,15 @@
 #include "wiced.h"
 #include "wiced_hal_adc.h"
 #include "wiced_platform.h"
+#include "wiced_thermistor.h"
 
 /******************************************************************************
  *                                Constants
  ******************************************************************************/
-
+/* This is the temperature measurement interval which is same as configured in
+ * the BT Configurator - The variable represents interval in milliseconds.
+ */
 #define BALANCE_RESISTANCE              100000              /* Value of Reference Resistance connected in series with the thermistor */
-#define POLL_TIMER_IN_MS                5000               /* Milliseconds timer*/
-
-#ifndef THERMISTOR_aux_0_TRIGGER_OUT
-
-#ifdef CYW20719B1
-#define THERMISTOR_PIN  ADC_INPUT_P10                       /*CYW920719Q40EVB-01 has P10 connected to Thermistor*/
-#endif
-
-#ifdef CYW20735B1
-#define THERMISTOR_PIN  ADC_INPUT_P8                        /*CYW920735Q60EVB-01 has P8 connected to Thermistor*/
-#endif
-
-#ifdef CYW20819A1
-#define THERMISTOR_PIN  ADC_INPUT_P8                        /*CYW920819EVB-02 has P8 connected to Thermistor*/
-#endif
-
-#ifdef CYW20820A1
-#define THERMISTOR_PIN  ADC_INPUT_P8                        /*CYW920820EVB-02 has P8 connected to Thermistor*/
-#endif
-
-#ifdef CYW20719B2
-#define THERMISTOR_PIN  ADC_INPUT_P10                        /*CYW920719B2Q40EVB-01 has P10 connected to Thermistor*/
-#endif
-
-#else
-
-#define THERMISTOR_PIN THERMISTOR_aux_0_TRIGGER_OUT
-
-#endif
 
 /******************************************************************************
  *                                Variable/Structure/type Definitions
@@ -301,11 +275,14 @@ void thermistor_init(void)
 
  @return temperature in celsius multiplied by 100
  */
-int16_t thermistor_read(void)
+int16_t thermistor_read(thermistor_cfg_t *p_thermistor_cfg)
 {
     volatile uint16_t voltage_val_adc_in_mv = 0;
     volatile uint16_t vddio_mv = 0;
     volatile int16_t temp_in_celsius = 0;
+
+    if(!p_thermistor_cfg)
+        return 0;
 
     /*
      * Measure the voltage(in milli volts) on the channel being passed as an argument
@@ -317,12 +294,12 @@ int16_t thermistor_read(void)
     if (vddio_mv < 1850)
     {                                    /*1.85V is used instead of 1.8V because of +/-3% inaccuracy */
         wiced_hal_adc_set_input_range(ADC_RANGE_0_1P8V);
-        voltage_val_adc_in_mv = wiced_hal_adc_read_voltage(THERMISTOR_PIN); /* Input channel to measure DC voltage(temperature)-> GPIO 10 -> J12.1, J14.1 */
+        voltage_val_adc_in_mv = wiced_hal_adc_read_voltage(p_thermistor_cfg->high_pin);
     }
     else
     {
         wiced_hal_adc_set_input_range(ADC_RANGE_0_3P6V);
-        voltage_val_adc_in_mv = wiced_hal_adc_read_voltage(THERMISTOR_PIN); /* Input channel to measure DC voltage(temperature)-> GPIO 10 -> J12.1, J14.1 */
+        voltage_val_adc_in_mv = wiced_hal_adc_read_voltage(p_thermistor_cfg->high_pin);
     }
     temp_in_celsius = get_temp_in_celsius(vddio_mv, voltage_val_adc_in_mv);
     return temp_in_celsius;

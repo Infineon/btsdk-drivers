@@ -39,20 +39,6 @@
 // choose which ref resistance you use
 #define THERM_10K
 
-typedef struct
-{
-    uint16_t                high_pin;           /*  A/D input high pin    */
-    uint16_t                low_pin;            /*  A/D input low pin     */
-    uint16_t                adc_power_pin;      /*  ADC power pin         */
-} thermistor_cfg_t;
-
-thermistor_cfg_t thermistor_cfg =
-{
-    .high_pin       = ADC_INPUT_P14,
-    .low_pin        = ADC_INPUT_P11,
-    .adc_power_pin  = WICED_P09,
-};
-
 /**********************************************************************************************************
 Variables Definitions
 **********************************************************************************************************/
@@ -334,7 +320,7 @@ Function Declarations
 *
 * \return None
 ******************************************************************************/
-void thermistor_init(void)
+void thermistor_init()
 {
     wiced_hal_adc_init();
 }
@@ -344,20 +330,23 @@ void thermistor_init(void)
 ***************************************************************************//**
 * The function reads the thermistor temperature.
 *
-* Return temperature in degrees Celsius * 100
+* Return temperature in degrees Celsius * 100.
 *
 ******************************************************************************/
-int16_t thermistor_read(void)
+int16_t thermistor_read(thermistor_cfg_t *p_thermistor_cfg)
 {
     uint32_t voltage_val_low = 0, voltage_val_high = 0, therm_cal_value = 0;
     int16_t  temp = 8500;
     int i;
 
-    // open ADC
-    wiced_hal_gpio_configure_pin(thermistor_cfg.adc_power_pin,  GPIO_OUTPUT_ENABLE, GPIO_PIN_OUTPUT_HIGH);
+    if(!p_thermistor_cfg)
+        return 0;
 
-    voltage_val_high = wiced_hal_adc_read_voltage(thermistor_cfg.high_pin);
-    voltage_val_low  = wiced_hal_adc_read_voltage(thermistor_cfg.low_pin);
+    // open ADC
+    wiced_hal_gpio_configure_pin(p_thermistor_cfg->adc_power_pin,  GPIO_OUTPUT_ENABLE, GPIO_PIN_OUTPUT_HIGH);
+
+    voltage_val_high = wiced_hal_adc_read_voltage(p_thermistor_cfg->high_pin);
+    voltage_val_low  = wiced_hal_adc_read_voltage(p_thermistor_cfg->low_pin);
     therm_cal_value  = RES_THERM * (voltage_val_high - voltage_val_low) / voltage_val_low;
 
     WICED_BT_TRACE("thermistor_read high:%d low:%d cal:%d\n", voltage_val_high, voltage_val_low, therm_cal_value);
@@ -403,6 +392,6 @@ int16_t thermistor_read(void)
     }
 #endif
     // power off thermistor
-    wiced_hal_gpio_configure_pin(thermistor_cfg.adc_power_pin, GPIO_OUTPUT_ENABLE, GPIO_PIN_OUTPUT_LOW);
+    wiced_hal_gpio_configure_pin(p_thermistor_cfg->adc_power_pin, GPIO_OUTPUT_ENABLE, GPIO_PIN_OUTPUT_LOW);
     return temp;
 }

@@ -44,6 +44,10 @@
 #include "wiced_bt_trace.h"
 #include "wiced_hal_gpio.h"
 
+#ifndef WICED_HAL_GPIO_PIN_UNUSED
+#define WICED_HAL_GPIO_PIN_UNUSED 0xFF
+#endif
+
 /**
 * \addtogroup
 * \ingroup HardwareDrivers
@@ -107,6 +111,7 @@ void max44009_int_clean (void);
 *       uint16_t    sda_pin                     - sda pin definition
 *
 *       uint16_t    irq_pin                     - pin used to receive interrupt signal from light sensor
+*                                                 Set to WICED_HAL_GPIO_PIN_UNUSED if the IRQ pin is not connected/used
 *
 *       uint8_t     irq_enable_reg_value        - irq enable register value
 *

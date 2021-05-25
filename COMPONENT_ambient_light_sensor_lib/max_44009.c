@@ -75,6 +75,7 @@ void max44009_int_clean (void)
 *       uint16_t    sda_pin                     - sda pin definition
 *
 *       uint16_t    irq_pin                     - pin used to receive interrupt signal from light sensor
+*                                                 Set to WICED_HAL_GPIO_PIN_UNUSED if the IRQ pin is not connected/used
 *
 *       uint8_t     irq_enable_reg_value        - irq enable register value
 *
@@ -132,9 +133,12 @@ void max44009_init(max44009_user_set_t *max44009_usr_set, void (*user_fn)(void*,
     max44009_reg_info.reg_value = max44009_usr_set->threshold_timer_reg_value;
     wiced_hal_i2c_write( (uint8_t*)&max44009_reg_info, 0x0002, MAX44009_ADDRESS1);
 
-    /* Register irq */
-    wiced_hal_gpio_configure_pin(max44009_usr_set->irq_pin, (GPIO_INPUT_ENABLE | GPIO_PULL_UP | GPIO_EN_INT_LEVEL_LOW), GPIO_PIN_OUTPUT_HIGH);
-    wiced_hal_gpio_register_pin_for_interrupt(max44009_usr_set->irq_pin, user_fn, usr_data);
+    /* Register irq unless it is set as unused */
+    if (max44009_usr_set->irq_pin != WICED_HAL_GPIO_PIN_UNUSED)
+    {
+        wiced_hal_gpio_configure_pin(max44009_usr_set->irq_pin, (GPIO_INPUT_ENABLE | GPIO_PULL_UP | GPIO_EN_INT_LEVEL_LOW), GPIO_PIN_OUTPUT_HIGH);
+        wiced_hal_gpio_register_pin_for_interrupt(max44009_usr_set->irq_pin, user_fn, usr_data);
+    }
 }
 
 /******************************************************************************
