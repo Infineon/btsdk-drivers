@@ -102,8 +102,12 @@ void max44009_int_clean (void)
 ******************************************************************************/
 void max44009_init(max44009_user_set_t *max44009_usr_set, void (*user_fn)(void*, uint8_t), void* usr_data)
 {
+    WICED_BT_TRACE("max44009_init: SCL:%d SDA:%d\n", max44009_usr_set->scl_pin, max44009_usr_set->sda_pin);
+
     wiced_hal_i2c_init();
+    #if !defined(CYW43012C0)
     wiced_hal_i2c_select_pads(max44009_usr_set->scl_pin, max44009_usr_set->sda_pin);
+    #endif
     wiced_hal_i2c_set_speed(I2CM_SPEED_400KHZ);
 
     /* Get I2C device, MAX44009 I2C address is 0x4A(74)

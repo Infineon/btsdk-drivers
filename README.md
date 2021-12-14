@@ -22,3 +22,11 @@ This repo contains driver libraries used in BTSDK 2.0 and higher. The libraries 
 
 * pir\_motion\_sensor\_lib<br/>
     * PIR (Passive Infrared Motion Sensor) library for Mesh kit (CYBT-213043-MESH)<br/>
+
+
+* button\_manager<br/>
+    * Library providing Button Management<br/>
+
+
+* led\_manager<br/>
+    * LED Management Support<br/>
