@@ -35,16 +35,16 @@
 #include "wiced_platform.h"
 
 #include "wiced_hal_i2c.h"
-#include "max_44009.h"
+#include "opt3002.h"
 #include "wiced_bt_trace.h"
 
 /* Put reg addr into array to make it act as buffer, I2C api need buffer as input param */
-uint8_t reg_buffer[3] = {MAX44009_INTERRUPT_STATUS, MAX44009_LUX_HIGH_REGISTER, MAX44009_LUX_LOW_REGISTER};
+uint8_t reg_buffer[1] = {OPT3002_RESULT_REGISTER};
 
-max44009_reg_info_t max44009_reg_info;
+opt3002_reg_info_t opt3002_reg_info;
 
 /******************************************************************************
-* Function Name: max44009_int_clean
+* Function Name: opt3002_int_clean
 ***************************************************************************//**
 * Clean interrupt status.
 *
@@ -52,22 +52,57 @@ max44009_reg_info_t max44009_reg_info;
 *
 * \return None
 ******************************************************************************/
-void max44009_int_clean (void)
+void opt3002_int_clean (void)
 {
     uint8_t irq_status;
     /* read irq status reg to clear irq status */
-    wiced_hal_i2c_write( &reg_buffer[0], 0x0001, MAX44009_ADDRESS1);
-    wiced_hal_i2c_read(&irq_status, 0x0001, MAX44009_ADDRESS1);
+    wiced_hal_i2c_write( &reg_buffer[0], 0x0001, OPT3002_ADDRESS1);
+    wiced_hal_i2c_read(&irq_status, 0x0001, OPT3002_ADDRESS1);
 
-    WICED_BT_TRACE("max44009 interrupt enters \r\n");
+    WICED_BT_TRACE("opt3002 interrupt enters \r\n");
 }
 
 /******************************************************************************
-* Function Name: max44009_init
+* Function Name: opt3002_register_read
 ***************************************************************************//**
-* Initializes the 44009 light sensor.
+* read a 16-bit register.
 *
-* \param max44009_user_set_t *max44009_usr_set
+* \param  OPT3002_REG_t register value
+*
+* \return 16-bit register value
+******************************************************************************/
+uint16_t opt3002_register_read (OPT3002_REG_t reg)
+{
+    opt3002_reg_info.reg_addr = reg;
+    wiced_hal_i2c_combined_read((uint8_t*)&opt3002_reg_info.reg_value_hi, 2,
+                                (uint8_t*)&opt3002_reg_info.reg_addr, 1, OPT3002_ADDRESS1);
+    return ((opt3002_reg_info.reg_value_hi << 8) | opt3002_reg_info.reg_value_lo);
+}
+
+/******************************************************************************
+* Function Name: opt3002_register_write
+***************************************************************************//**
+* read a 16-bit register.
+*
+* \param  OPT3002_REG_t register id
+* \param  uint16_t      register value
+*
+* \return status I2CM_SUCCESS or I2CM_OP_FAILED
+******************************************************************************/
+uint8_t opt3002_register_write (OPT3002_REG_t reg, uint16_t value)
+{
+    opt3002_reg_info.reg_addr = reg;
+    opt3002_reg_info.reg_value_hi = value >> 8;
+    opt3002_reg_info.reg_value_lo = value & 0xff;
+    return wiced_hal_i2c_write( (uint8_t*)&opt3002_reg_info, 0x0003, OPT3002_ADDRESS1);
+}
+
+/******************************************************************************
+* Function Name: opt3002_init
+***************************************************************************//**
+* Initializes the opt3002 light sensor.
+*
+* \param opt3002_user_set_t *opt3002_usr_set
 * Configure user structure.
 *
 *       uint16_t    scl_pin                     - scl pin definition
@@ -100,89 +135,74 @@ void max44009_int_clean (void)
 *
 * \return None
 ******************************************************************************/
-void max44009_init(max44009_user_set_t *max44009_usr_set, void (*user_fn)(void*, uint8_t), void* usr_data)
+void opt3002_init(opt3002_user_set_t *opt3002_usr_set, void (*user_fn)(void*, uint8_t), void* usr_data)
 {
-    WICED_BT_TRACE("max44009_init: SCL:%d SDA:%d\n", max44009_usr_set->scl_pin, max44009_usr_set->sda_pin);
+    uint16_t reg_value;
+    WICED_BT_TRACE("opt3002_init: SCL:%d SDA:%d\n", opt3002_usr_set->scl_pin, opt3002_usr_set->sda_pin);
 
     wiced_hal_i2c_init();
   #if defined(CYW43012C0)
-    if(max44009_usr_set->scl_pin < WICED_GPIO_00 && max44009_usr_set->sda_pin < WICED_GPIO_00)
-        wiced_hal_i2c_select_pads(max44009_usr_set->scl_pin, max44009_usr_set->sda_pin);
+    if(opt3002_usr_set->scl_pin < WICED_GPIO_00 && opt3002_usr_set->sda_pin < WICED_GPIO_00)
+        wiced_hal_i2c_select_pads(opt3002_usr_set->scl_pin, opt3002_usr_set->sda_pin);
   #elif !defined(CYW55572A1)
-    wiced_hal_i2c_select_pads(max44009_usr_set->scl_pin, max44009_usr_set->sda_pin);
+    wiced_hal_i2c_select_pads(opt3002_usr_set->scl_pin, opt3002_usr_set->sda_pin);
   #endif
     wiced_hal_i2c_set_speed(I2CM_SPEED_400KHZ);
 
-    /* Get I2C device, MAX44009 I2C address is 0x4A(74)
-     Select configuration register: 0x02 and write 0x40 into it
-    0x40 means: Continuous mode, Integration time = 800 ms */
-    max44009_reg_info.reg_addr = MAX44009_CFG_REGISTER;
-    max44009_reg_info.reg_value = max44009_usr_set->cfg_reg_value;
-    wiced_hal_i2c_write( (uint8_t*)&max44009_reg_info, 0x0002, MAX44009_ADDRESS1);
+    /* read manufacturer ID */
+    reg_value = opt3002_register_read(OPT3002_MANUFACTURER_ID);
+    WICED_BT_TRACE("Read manufacturer's ID register 0x7E: %c%c\n", (uint8_t)(reg_value >> 8), (uint8_t)(reg_value & 0xff));
 
-    /* Enable irq */
-    max44009_reg_info.reg_addr = MAX44009_INTERRUPT_ENABLE;
-    max44009_reg_info.reg_value = max44009_usr_set->irq_enable_reg_value;
-    wiced_hal_i2c_write( (uint8_t*)&max44009_reg_info, 0x0002, MAX44009_ADDRESS1);
+    /* config I2C device, opt3002 I2C address is 0x44
+     Select configuration register: 0x01 and write 0xC600 */
+    opt3002_register_write(OPT3002_CFG_REGISTER, OPT3002_CONFIG_DEFAULT);
 
     /* Set upper threshold */
-    max44009_reg_info.reg_addr = MAX44009_UPPER_THRESHOLD;
-    max44009_reg_info.reg_value = max44009_usr_set->upper_threshold_reg_value;
-    wiced_hal_i2c_write( (uint8_t*)&max44009_reg_info, 0x0002, MAX44009_ADDRESS1);
+    opt3002_register_write(OPT3002_UPPER_THRESHOLD, 0xbfff);
 
     /* Set low threshold */
-    max44009_reg_info.reg_addr = MAX44009_LOW_THRESHOLD;
-    max44009_reg_info.reg_value = max44009_usr_set->low_threshold_reg_value;
-    wiced_hal_i2c_write( (uint8_t*)&max44009_reg_info, 0x0002, MAX44009_ADDRESS1);
-
-    /* set dealy time */
-    max44009_reg_info.reg_addr = MAX44009_THRESHOLD_TIMER;
-    max44009_reg_info.reg_value = max44009_usr_set->threshold_timer_reg_value;
-    wiced_hal_i2c_write( (uint8_t*)&max44009_reg_info, 0x0002, MAX44009_ADDRESS1);
+    opt3002_register_write(OPT3002_LOW_THRESHOLD, 0);
 
     /* Register irq unless it is set as unused */
-    if (max44009_usr_set->irq_pin != WICED_HAL_GPIO_PIN_UNUSED)
+    if (opt3002_usr_set->irq_pin != WICED_HAL_GPIO_PIN_UNUSED)
     {
-        wiced_hal_gpio_configure_pin(max44009_usr_set->irq_pin, (GPIO_INPUT_ENABLE | GPIO_PULL_UP | GPIO_EN_INT_LEVEL_LOW), GPIO_PIN_OUTPUT_HIGH);
-        wiced_hal_gpio_register_pin_for_interrupt(max44009_usr_set->irq_pin, user_fn, usr_data);
+        wiced_hal_gpio_configure_pin(opt3002_usr_set->irq_pin, (GPIO_INPUT_ENABLE | GPIO_PULL_UP | GPIO_EN_INT_LEVEL_LOW), GPIO_PIN_OUTPUT_HIGH);
+        wiced_hal_gpio_register_pin_for_interrupt(opt3002_usr_set->irq_pin, user_fn, usr_data);
     }
 }
 
 /******************************************************************************
-* Function Name: max44009_read_ambient_light
+* Function Name: opt3002_read_ambient_light
 ***************************************************************************//**
 * Read light sensor status.
 *
 * \param  None
 *
-* \return lux_value
+* \return optical_power
 * Resolution is 0.01, Max range is 167772.14(3octets).
 ******************************************************************************/
-uint32_t max44009_read_ambient_light(void)
+uint32_t opt3002_read_ambient_light(void)
 {
-    uint8_t exponent, mantissa;
-    uint8_t rx_data[2] = {0};
-    uint32_t temp=0, lux_value=0;
+    uint16_t exponent, mantissa;
+    uint32_t temp=0, optical_power=0;
+    uint16_t reg_value;
 
-    wiced_hal_i2c_write( &reg_buffer[1], 0x0001, MAX44009_ADDRESS1);
-    wiced_hal_i2c_read(  &rx_data[0],    0x0001, MAX44009_ADDRESS1);
+    reg_value = opt3002_register_read(OPT3002_RESULT_REGISTER);
 
-    wiced_hal_i2c_write( &reg_buffer[2], 0x0001, MAX44009_ADDRESS1);
-    wiced_hal_i2c_read(  &rx_data[1],    0x0001, MAX44009_ADDRESS1);
-
-    /* Convert the data to lumicance */
-    exponent = (rx_data[0] & 0xF0) >> 4;
-    mantissa = ((rx_data[0] & 0x0F) << 4) | (rx_data[1] & 0x0F);
+    /* Convert the data to irradiance nW/m^2 */
+    exponent = reg_value >> 12;
+    mantissa = reg_value & 0xfff;
 
     /* lux_value = (float)((0x00000001 << exponent) * (mantissa * 0.045)); */
-    temp = (0x00000001 << exponent) * mantissa * 45;
+    /* Optical_Power = (2^[3:0]) × R[11:0] × 1.2 [nW/cm2]  */
+    temp = (0x00000001 << exponent) * mantissa * 120;
 
     /* merge integer part and decimal part into uint32 */
-    lux_value = temp / 10 + (temp / 100 % 10 * 10 + temp / 10 % 10);
+    optical_power = temp / 10 + (temp / 100 % 10 * 10 + temp / 10 % 10);
 
-   // WICED_BT_TRACE("lux value: %d.%d\r\n", lux_value / 100, lux_value % 100);
+  //  WICED_BT_TRACE("optical power value: %d.%d nW/cm^2\r\n", optical_power / 100, optical_power % 100);
 
-    return lux_value;
+    return optical_power;
 }
 
 /******************************************************************************
@@ -190,81 +210,78 @@ uint32_t max44009_read_ambient_light(void)
 ***************************************************************************//**
 * Convert from lux value to a reg value.
 *
-* \param  lux_value
-* lux_value. Range is 0.045 ~ 188000.
+* \param  optical_power
+* optical_power. Range is 1.2 nW/cm2 to 10,000,000 nW/cm2
 *
-* \return reg_value
-* 8 bits reg value.
+* \return reg_value 16-bit register value.
 ******************************************************************************/
-uint8_t convert_lux_2_reg_value(uint32_t lux_value)
+uint16_t convert_lux_2_reg_value(uint32_t optical_power)
 {
-    uint8_t exp, reg_value;
+    uint16_t exp;
+    uint16_t reg_value = 0xffff;
     uint32_t mantissa;
 
-    mantissa = lux_value * 1000 / 45;
+    mantissa = optical_power * 100 / 120;
 
-    if (mantissa == 0 || mantissa > 4177778)
-    {
-        /* Error */
-        WICED_BT_TRACE("Exceed the lux limitation\r\n");
-        return 0;
-    }
-
-    for (exp = 0; mantissa > 0xff; exp++)
+    for (exp = 0; mantissa > 0xfff; exp++)
     {
         mantissa >>= 1;
     }
+    if(exp > 0xd)
+    {
+        WICED_BT_TRACE("optical power value exceeds sensor limits\n;");
+    }
+    else
+    {
+        mantissa &= 0xfff;
+        exp <<= 12;
 
-    mantissa >>= 4;
-    mantissa &= 0xf;
-    exp <<= 4;
-
-    reg_value = exp | mantissa;
-    WICED_BT_TRACE("Threshold register value you set is: %d\r\n", reg_value);
+        reg_value = ((exp & 0xf) << 12) | (mantissa & 0xfff);
+        WICED_BT_TRACE("Threshold register value you set is: %d\r\n", reg_value);
+    }
 
     return reg_value;
 }
 
 /******************************************************************************
-* Function Name: max44009_set_low_threshold
+* Function Name: opt3002_set_low_threshold
 ***************************************************************************//**
 * Set low threshold.
 *
-* \param  lux_value
-* Low threshold value. Range is 0.045 ~ 188000.
+* \param  optical_power Low threshold value.
 *
 * \return None
 ******************************************************************************/
-void max44009_set_low_threshold(uint32_t lux_value)
+void opt3002_set_low_threshold(uint32_t optical_power)
 {
-    uint8_t low_threshold;
-    low_threshold = convert_lux_2_reg_value(lux_value);
-    max44009_reg_info.reg_addr = MAX44009_LOW_THRESHOLD;
-    max44009_reg_info.reg_value = low_threshold;
-    wiced_hal_i2c_write( (uint8_t*)&max44009_reg_info, 0x0002, MAX44009_ADDRESS1);
+    uint16_t low_threshold = convert_lux_2_reg_value(optical_power);
+    if(low_threshold != 0xffff)
+    {
+        opt3002_register_write(OPT3002_LOW_THRESHOLD, low_threshold);
+    }
 }
 
 /******************************************************************************
-* Function Name: max44009_set_upper_threshold
+* Function Name: opt3002_set_upper_threshold
 ***************************************************************************//**
 * Set upper threshold.
 *
-* \param  lux_value
+* \param  optical_power
 * Upper threshold value. Range is 0.045 ~ 188000.
 *
 * \return None
 ******************************************************************************/
-void max44009_set_upper_threshold(uint32_t lux_value)
+void opt3002_set_upper_threshold(uint32_t optical_power)
 {
-    uint8_t upper_threshold;
-    upper_threshold = convert_lux_2_reg_value(lux_value);
-    max44009_reg_info.reg_addr = MAX44009_UPPER_THRESHOLD;
-    max44009_reg_info.reg_value = upper_threshold;
-    wiced_hal_i2c_write( (uint8_t*)&max44009_reg_info, 0x0002, MAX44009_ADDRESS1);
+    uint16_t upper_threshold = convert_lux_2_reg_value(optical_power);
+    if(upper_threshold != 0xffff)
+    {
+        opt3002_register_write(OPT3002_UPPER_THRESHOLD, upper_threshold);
+    }
 }
 
 /******************************************************************************
-* Function Name: max44009_set_irq_enable
+* Function Name: opt3002_set_irq_enable
 ***************************************************************************//**
 * Set irq enable.
 *
@@ -273,9 +290,9 @@ void max44009_set_upper_threshold(uint32_t lux_value)
 *
 * \return None
 ******************************************************************************/
-void max44009_set_irq_enable(uint8_t irq_enable)
+void opt3002_set_irq_enable(uint8_t irq_enable)
 {
-    max44009_reg_info.reg_addr = MAX44009_INTERRUPT_ENABLE;
-    max44009_reg_info.reg_value = irq_enable;
-    wiced_hal_i2c_write( (uint8_t*)&max44009_reg_info, 0x0002, MAX44009_ADDRESS1);
+ //   opt3002_reg_info.reg_addr = OPT3002_INTERRUPT_ENABLE;
+ //   opt3002_reg_info.reg_value = irq_enable;
+ //   wiced_hal_i2c_write( (uint8_t*)&opt3002_reg_info, 0x0002, OPT3002_ADDRESS1);
 }

@@ -32,14 +32,14 @@
  */
 
 /**************************************************************************//**
-* \file <max_44009.h>
+* \file <opt3002.h>
 * List of parameters and defined functions needed to access the
-* max44009 light sensor driver.
+* OPT3002 light sensor driver.
 *
 ******************************************************************************/
 
-#ifndef MAX44009_H
-#define MAX44009_H
+#ifndef OPT3002_H
+#define OPT3002_H
 
 #include "wiced_bt_trace.h"
 #include "wiced_hal_gpio.h"
@@ -53,42 +53,73 @@
 * \ingroup HardwareDrivers
 * @{
 *
-* Defines max44009 sensor driver to facilitate interfacing
+* Defines OPT3002 sensor driver to facilitate interfacing
 * with various components of the hardware.
 */
 
-#define MAX44009_ADDRESS1           0x4A    /**< sensor addr: 0b01001010                 */
+#define OPT3002_ADDRESS1           0x44    /**< sensor addr: 0b01001010                 */
 
-#define MAX44009_INTERRUPT_STATUS   0x00    /**< Interrupt status register addr          */
-#define MAX44009_INTERRUPT_ENABLE   0x01    /**< Interrupt status enable register addr   */
-#define MAX44009_CFG_REGISTER       0x02    /**< Configuration register addr             */
-#define MAX44009_LUX_HIGH_REGISTER  0x03    /**< Lux high byte register addr             */
-#define MAX44009_LUX_LOW_REGISTER   0x04    /**< Lux low byte register addr              */
-#define MAX44009_UPPER_THRESHOLD    0x05    /**< Upper threshold high byte register addr */
-#define MAX44009_LOW_THRESHOLD      0x06    /**< Low threshold high byte register addr   */
-#define MAX44009_THRESHOLD_TIMER    0x07    /**< Threshold timer register addr           */
+typedef enum
+{
+    OPT3002_RESULT_REGISTER,        /**< Result register addr          */
+    OPT3002_CFG_REGISTER,           /**< Configuration register addr   */
+    OPT3002_LOW_THRESHOLD,          /**< Low threshold register addr   */
+    OPT3002_UPPER_THRESHOLD,        /**< Upper threshold register addr */
+    OPT3002_MANUFACTURER_ID = 0x7E  /**< Manufacturer id register addr */
+} OPT3002_REG_t;
+
+#define OPT3002_CFG_RANGE_NUMBER    0x0C  // auto
+#define OPT3002_CFG_CONVERSION_TIME 0x00  // 0 -> 100 ms, 1 -> 800 ms
+#define OPT3002_CFG_CONVERSION_MODE 0x03  // continuous
+#define OPT3002_CFG_LATCH           0x00  // no need to clear flags
+#define OPT3002_CFG_POLARITY        0x00  // interrupt pin pulls low
+#define OPT3002_CFG_MASK_EXP        0x00  // don't mask exponent field in result
+#define OPT3002_CFG_FAULT_TH        0x00  // interrupt on fault count of 1
+
+#define OPT3002_CONFIG_DEFAULT      0xC600
+
+typedef union
+{
+    struct
+    {
+		uint16_t fault_threshold : 2;
+		uint16_t mask_exponent : 1;
+		uint16_t interrupt_polarity : 1;
+		uint16_t latch_type : 1;
+		uint16_t flag_low : 1;
+		uint16_t flag_high : 1;
+		uint16_t conversion_ready : 1;
+		uint16_t overflow : 1;
+		uint16_t mode_of_conversion : 2;
+		uint16_t conversion_time : 1;
+		uint16_t range_number : 4;
+    };
+
+    uint16_t data;
+} opt3002_config_reg_t;
 
 typedef struct
 {
-    uint8_t reg_addr;
-    uint8_t reg_value;
-}max44009_reg_info_t;
+    uint8_t  reg_addr;
+    uint8_t reg_value_hi;
+    uint8_t reg_value_lo;
+} opt3002_reg_info_t;
 
 typedef struct
 {
     uint16_t    scl_pin;                    /**< Scl pin definition */
     uint16_t    sda_pin;                    /**< Sda pin definition */
     uint16_t    irq_pin;                    /**< Pin used to receive interrupt signal from light sensor */
+    uint16_t    cfg_reg_value;              /**< Configuration register value */
+    uint16_t     upper_threshold_reg_value;  /**< Upper threshold register value */
+    uint16_t     low_threshold_reg_value;    /**< Low threshold register value */
     uint8_t     irq_enable_reg_value;       /**< Irq enable register value */
-    uint8_t     cfg_reg_value;              /**< Configuration register value */
-    uint8_t     upper_threshold_reg_value;  /**< Upper threshold register value */
-    uint8_t     low_threshold_reg_value;    /**< Low threshold register value */
     uint8_t     threshold_timer_reg_value;  /**< Delay time for asserting irq pin when light level exceeds threshold */
-}max44009_user_set_t;
+}opt3002_user_set_t;
 
 
 /******************************************************************************
-* Function Name: max44009_int_clean
+* Function Name: opt3002_int_clean
 ***************************************************************************//**
 * Clean interrupt status.
 *
@@ -96,14 +127,37 @@ typedef struct
 *
 * \return None
 ******************************************************************************/
-void max44009_int_clean (void);
+void opt3002_int_clean (void);
 
 /******************************************************************************
-* Function Name: max44009_init
+* Function Name: opt3002_register_read
 ***************************************************************************//**
-* Initializes the 44009 light sensor.
+* read a 16-bit register.
 *
-* \param max44009_user_set_t *max44009_usr_set
+* \param  OPT3002_REG_t register id
+*
+* \return 16-bit register value
+******************************************************************************/
+uint16_t opt3002_register_read (OPT3002_REG_t reg);
+
+/******************************************************************************
+* Function Name: opt3002_register_write
+***************************************************************************//**
+* read a 16-bit register.
+*
+* \param  OPT3002_REG_t register id
+* \param  uint16_t      register value
+*
+* \return status I2CM_SUCCESS or I2CM_OP_FAILED
+******************************************************************************/
+uint8_t opt3002_register_write (OPT3002_REG_t reg, uint16_t value);
+
+/******************************************************************************
+* Function Name: opt3002_init
+***************************************************************************//**
+* Initializes the opt3002 light sensor.
+*
+* \param opt3002_user_set_t *opt3002_usr_set
 * Configure user structure.
 *
 *       uint16_t    scl_pin                     - scl pin definition
@@ -136,10 +190,10 @@ void max44009_int_clean (void);
 *
 * \return None
 ******************************************************************************/
-void max44009_init(max44009_user_set_t *max44009_usr_set, void (*user_fn)(void*, uint8_t), void* usr_data);
+void opt3002_init(opt3002_user_set_t *opt3002_usr_set, void (*user_fn)(void*, uint8_t), void* usr_data);
 
 /******************************************************************************
-* Function Name: max44009_read_ambient_light
+* Function Name: opt3002_read_ambient_light
 ***************************************************************************//**
 * Read light sensor status.
 *
@@ -148,10 +202,10 @@ void max44009_init(max44009_user_set_t *max44009_usr_set, void (*user_fn)(void*,
 * \return lux_value.
 * Resolution is 0.01, Max range is 167772.14(3octets).
 ******************************************************************************/
-uint32_t max44009_read_ambient_light(void);
+uint32_t opt3002_read_ambient_light(void);
 
 /******************************************************************************
-* Function Name: max44009_set_low_threshold
+* Function Name: opt3002_set_low_threshold
 ***************************************************************************//**
 * Set low threshold.
 *
@@ -160,10 +214,10 @@ uint32_t max44009_read_ambient_light(void);
 *
 * \return None
 ******************************************************************************/
-void max44009_set_low_threshold(uint32_t lux_value);
+void opt3002_set_low_threshold(uint32_t lux_value);
 
 /******************************************************************************
-* Function Name: max44009_set_upper_threshold
+* Function Name: opt3002_set_upper_threshold
 ***************************************************************************//**
 * Set upper threshold.
 *
@@ -172,10 +226,10 @@ void max44009_set_low_threshold(uint32_t lux_value);
 *
 * \return None
 ******************************************************************************/
-void max44009_set_upper_threshold(uint32_t lux_value);
+void opt3002_set_upper_threshold(uint32_t lux_value);
 
 /******************************************************************************
-* Function Name: max44009_set_irq_enable
+* Function Name: opt3002_set_irq_enable
 ***************************************************************************//**
 * Set irq enable.
 *
@@ -183,7 +237,7 @@ void max44009_set_upper_threshold(uint32_t lux_value);
 *
 * \return None
 ******************************************************************************/
-void max44009_set_irq_enable(uint8_t irq_enable);
+void opt3002_set_irq_enable(uint8_t irq_enable);
 
 
 /* @} */

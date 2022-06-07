@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021, Cypress Semiconductor Corporation (an Infineon company) or
+ * Copyright 2016-2022, Cypress Semiconductor Corporation (an Infineon company) or
  * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
@@ -137,7 +137,7 @@ void e93196_reg_write(e93196_write_reg_t *p_e93196_write_reg)
 {
     uint32_t ui_data;
 
-    e93196_write_data_trans(&ui_data, p_e93196_write_reg);                  /* write_data transfered to bit stream */
+    e93196_write_data_trans(&ui_data, p_e93196_write_reg);                  /* write_data transferred to bit stream */
     e93196_data_write(serin_pin, ui_data);
 
 #if E93196_DBG_PRINT_EN
@@ -163,7 +163,7 @@ void e93196_reg_read(e93196_read_reg_t *p_e93196_read_reg)
     uint32_t ui_data[2] = {0, 0};
 
     e93196_data_read(doci_pin, ui_data);                                    /* E931.96 data read#if E93196_DBG_PRINT_EN */
-    e93196_read_data_trans(p_e93196_read_reg, ui_data);                     /* bit steam transfered to structure */
+    e93196_read_data_trans(p_e93196_read_reg, ui_data);                     /* bit steam transferred to structure */
 
 #if E93196_DBG_PRINT_EN
     e93196_read_data_print(p_e93196_read_reg);
@@ -188,7 +188,7 @@ void e93196_sensitivity_set(uint8_t sensitivity)
     e93196_reg_read(&read_reg);
     memcpy(&write_reg, &(read_reg.sensitivity), sizeof(e93196_write_reg_t));
     write_reg.sensitivity = sensitivity;
-    e93196_reg_write(&write_reg);                                           /* write_data transfered to bit stream */
+    e93196_reg_write(&write_reg);                                           /* write_data transferred to bit stream */
 
 #if E93196_DBG_PRINT_EN
     e93196_reg_read(&read_reg);
@@ -213,7 +213,7 @@ void e93196_blind_time_set(uint8_t blind_time)
     e93196_reg_read(&read_reg);
     memcpy(&write_reg, &(read_reg.sensitivity), sizeof(e93196_write_reg_t));
     write_reg.blind_time = blind_time;
-    e93196_reg_write(&write_reg);                                           /* write_data transfered to bit stream */
+    e93196_reg_write(&write_reg);                                           /* write_data transferred to bit stream */
 
 #if E93196_DBG_PRINT_EN
     e93196_reg_read(&read_reg);
