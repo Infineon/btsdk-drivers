@@ -1,5 +1,5 @@
 /**
- * Copyright 2016-2022, Cypress Semiconductor Corporation (an Infineon company) or
+ * Copyright 2016-2023, Cypress Semiconductor Corporation (an Infineon company) or
  * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
@@ -39,8 +39,12 @@
 #include "wiced_bt_trace.h"
 #include "wiced_button_manager.h"
 #include "platform_button.h"
+#if !defined(CYW55500)
 #include "clock_timer.h"
-#ifdef CYW55572
+#else // defined(CYW55500)
+#include "btss_system.h"
+#endif // !defined(CYW55500)
+#if defined(CYW55572) || defined(CYW55500)
 #include "wiced_misc_rtos_utils.h"
 #include "wiced_memory.h"
 #endif
@@ -66,14 +70,14 @@
 #define TIMER_PARAM_TYPE    WICED_TIMER_PARAM_TYPE
 #endif
 
-#ifdef CYW55572
+#if defined(CYW55572) || defined(CYW55500)
 #define BUTTON_EVENT_QUEUE_DEPTH 16
 #endif
 
 /******************************************************
  *                    Structures
  ******************************************************/
-#ifdef CYW55572
+#if defined(CYW55572) || defined(CYW55500)
 typedef struct
 {
     button_manager_button_t *p_button;
@@ -93,7 +97,7 @@ static wiced_bool_t button_check_event_mask ( button_manager_button_t* button, u
 static void button_check_for_double_click( button_manager_button_t* button,  button_manager_event_t* new_event );
 static button_manager_event_t button_deduce_duration_event( button_manager_button_t *button, uint32_t current_interval );
 static button_manager_button_t* get_button( platform_button_t id );
-#ifdef CYW55572
+#if defined(CYW55572) || defined(CYW55500)
 static void button_event_defer_to_mpaf(void *arg);
 #endif
 
@@ -101,7 +105,7 @@ static void button_event_defer_to_mpaf(void *arg);
  *               Variables Definitions
  ******************************************************/
 static button_manager_t* button_manager;
-#ifdef CYW55572
+#if defined(CYW55572) || defined(CYW55500)
 static wiced_mutex_t   *p_mutex_button_event;
 static wiced_bt_buffer_q_t  button_event_queue;
 static wiced_bt_pool_t *p_button_event_pool = NULL;
@@ -142,8 +146,13 @@ static void button_long_press_detect_timeout_handler(TIMER_PARAM_TYPE arg)
 
         return;
     }
+#if !defined(CYW55500)
     /* Get current timestatmp. */
     p_button->timer_timestamp = clock_SystemTimeMicroseconds64();
+#else
+    /* Get current timestatmp. */
+    p_button->timer_timestamp = btss_system_getSystemTimeMicroseconds();
+#endif
 
     deferred_button_timer_handler((void *) p_button);
 }
@@ -231,7 +240,7 @@ wiced_result_t __attribute__((weak)) wiced_button_manager_init( button_manager_t
                          WICED_MILLI_SECONDS_TIMER);
     }
 
-#ifdef CYW55572
+#if defined(CYW55572) || defined(CYW55500)
     p_button_event_pool = wiced_bt_create_pool(
             "Button Event",
             sizeof(button_event_defer_to_mpaf_t),
@@ -366,9 +375,13 @@ static void button_state_change_callback_pressed(button_manager_button_t *p_butt
         {
             return;
         }
-
+#if !defined(CYW55500)
         /* Get current timestamp for pressed event. */
         p_button->pressed_timestamp = clock_SystemTimeMicroseconds64();
+#else
+        /* Get current timestamp for pressed event. */
+        p_button->pressed_timestamp = btss_system_getSystemTimeMicroseconds();
+#endif
 
         /* Start the button debounce timer. */
         wiced_start_timer(&p_button->debounce_timer,
@@ -399,9 +412,13 @@ static void button_state_change_callback_released(button_manager_button_t *p_but
         {
             return;
         }
-
+#if !defined(CYW55500)
         /* Get current timestamp for release event. */
         p_button->released_timestamp = clock_SystemTimeMicroseconds64();
+#else
+        /* Get current timestamp for release event. */
+        p_button->released_timestamp = btss_system_getSystemTimeMicroseconds();
+#endif
 
         /* Stop the long pressed event detect timer. */
         if (wiced_is_timer_in_use(&p_button->long_press_timer))
@@ -514,7 +531,7 @@ static wiced_result_t button_released_event_handler( void* arg )
      */
     if ( button_check_event_mask( button, new_release_event ) )
     {
-#ifndef CYW55572
+#if (!defined(CYW55572) && !defined(CYW55500))
         button_manager->configuration->event_handler( button, new_release_event, button->current_state );
 #else
         /*
@@ -554,7 +571,7 @@ static wiced_result_t button_released_event_handler( void* arg )
 #endif
     }
 
-#ifdef CYW55572
+#if defined(CYW55572) || defined(CYW55500)
     DEFER_MPAF_ERROR:
 #endif
 
@@ -687,7 +704,7 @@ static button_manager_button_t* get_button( platform_button_t id )
     return NULL;
 }
 
-#ifdef CYW55572
+#if defined(CYW55572) || defined(CYW55500)
 static void button_event_defer_to_mpaf(void *arg)
 {
     button_event_defer_to_mpaf_t button_event_buf;
