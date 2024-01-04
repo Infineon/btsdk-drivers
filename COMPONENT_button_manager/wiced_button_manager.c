@@ -165,7 +165,6 @@ static void button_long_press_detect_timeout_handler(TIMER_PARAM_TYPE arg)
 static void button_debounce_timeout_handler(TIMER_PARAM_TYPE arg)
 {
     button_manager_button_t *p_button = (button_manager_button_t *) arg;
-    wiced_result_t result;
 
     //WICED_BT_TRACE("button_debounce_timeout_handler (%d, %d)\n", p_button->configuration->button, p_button->debounce_counter);
 
@@ -398,8 +397,6 @@ static void button_state_change_callback_pressed(button_manager_button_t *p_butt
 
 static void button_state_change_callback_released(button_manager_button_t *p_button)
 {
-    wiced_result_t result;
-
     /* Check if the button is under de-bounce state. */
     if (p_button->debouncing)
     {   // under de-bounce state
@@ -634,7 +631,6 @@ static wiced_bool_t button_check_event_mask ( button_manager_button_t* button, u
 
 static button_manager_event_t button_deduce_duration_event( button_manager_button_t *button, uint32_t current_interval )
 {
-    button_manager_event_t  new_event = 0;
     uint32_t target_hold_interval;
 
     if (current_interval <= button_manager->configuration->debounce_duration)
