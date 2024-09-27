@@ -34,20 +34,4 @@ This repo contains driver libraries used in BTSDK 2.0 and higher. The libraries 
 
 * nvram\_emulation<br/>
     * NVRAM emulation in RAM for kits like CYW955513EVK-01 without flash access<br/>
-    This library provides APIs to allow platforms without flash to emulate NVRAM in RAM,
-    which allows sample applications to demonstrate functionality normally requiring NVRAM access,
-    for example link key storage and retrieval.
-    This can also be used as a starting point for solutions that will use an external host to store
-    and retrieve data from host storage.
-    To include NVRAM emulation support add COMPONENTS+=nvram_emulation to the makefile.
-    In C code where the wiced_hal_\*_nvram API will be used, make changes as follows:
-```js
-    /* add header */
-    #ifdef COMPONENT_nvram_emulation
-    #include "nvram_emulation_mem.h"
-    #endif
-    /* initialize the library before using */
-    #ifdef COMPONENT_nvram_emulation
-        nvram_emulation_mem_init();
-    #endif
-```
+    See btsdk-drivers/COMPONENT_nvram_emulation/readme.txt for details.

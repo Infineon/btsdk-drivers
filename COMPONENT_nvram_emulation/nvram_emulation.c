@@ -1,5 +1,5 @@
 /*
- * Copyright 2023, Cypress Semiconductor Corporation (an Infineon company) or
+ * Copyright 2023-2024, Cypress Semiconductor Corporation (an Infineon company) or
  * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
@@ -36,8 +36,93 @@
 #include "wiced_rtos.h"
 #include "wiced_transport.h"
 #include "nvram_emulation_mem.h"
+#ifdef  WICED_BT_TRACE_ENABLE
 #include "wiced_bt_trace.h"
+#endif
 
+#if NVRAM_EMULATION_HCI
+
+/*
+ * nvram_emulation_transport_status_handler
+ */
+wiced_result_t nvram_emulation_transport_status_handler( wiced_transport_type_t type )
+{
+    return wiced_transport_send_data(HCI_CONTROL_EVENT_DEVICE_STARTED, NULL, 0);
+}
+
+static wiced_result_t nvram_emulation_transport_rx_data_handler_push_nvram_data(uint8_t *p_data, uint32_t data_len)
+{
+    uint16_t vs_id;
+    uint32_t payload_len;
+    wiced_result_t status;
+
+    /* Check parameter. */
+    if ((p_data == NULL) ||
+        (data_len == 0))
+    {
+        return WICED_BADARG;
+    }
+
+    /* Parse information. */
+    STREAM_TO_UINT16(vs_id, p_data);
+    payload_len = data_len - sizeof(vs_id);
+    WICED_BT_TRACE("[%s] host data restore nvram_emulation_write vs_id 0x%x\n", __FUNCTION__, vs_id);
+    nvram_emulation_write(vs_id, payload_len, p_data, &status);
+    return status;
+}
+
+/*
+ * nvram_emulation_transport_rx_data_handler
+ */
+uint32_t nvram_emulation_transport_rx_data_handler(uint8_t *p_buffer, uint32_t length)
+{
+    uint16_t opcode;
+    uint16_t payload_len;
+    uint8_t *p_data = p_buffer;
+    uint32_t result = HCI_CONTROL_STATUS_FAILED;
+
+    /* Check parameter. */
+    if (p_buffer == NULL)
+    {
+        return HCI_CONTROL_STATUS_INVALID_ARGS;
+    }
+
+    // Expected minimum 4 byte as the wiced header
+    if (length < (sizeof(opcode) + sizeof(payload_len)))
+    {
+        wiced_transport_free_buffer(p_buffer);
+        return HCI_CONTROL_STATUS_INVALID_ARGS;
+    }
+
+    STREAM_TO_UINT16(opcode, p_data);       // Get OpCode
+    STREAM_TO_UINT16(payload_len, p_data);  // Gen Payload Length
+
+    switch(opcode)
+    {
+    case HCI_CONTROL_COMMAND_PUSH_NVRAM_DATA:
+        if(nvram_emulation_transport_rx_data_handler_push_nvram_data(p_data, payload_len) != WICED_SUCCESS)
+        {
+            WICED_BT_TRACE("[%s] host push nvram data failed, opcode 0x%x\n", __FUNCTION__, opcode);
+        }
+        // Freeing the buffer in which data is received
+        wiced_transport_free_buffer(p_buffer);
+        result = HCI_CONTROL_STATUS_SUCCESS;
+        break;
+    case HCI_CONTROL_COMMAND_DELETE_NVRAM_DATA:
+        nvram_emulation_delete( p_data[0] | ( p_data[1] << 8 ), (wiced_result_t *)&result );
+        WICED_BT_TRACE( "[%s] NVRAM delete: %d, result 0x%x\n", __FUNCTION__, p_data[0] | ( p_data[1] << 8 ), result );
+        // Freeing the buffer in which data is received
+        wiced_transport_free_buffer(p_buffer);
+        result = HCI_CONTROL_STATUS_SUCCESS;
+        break;
+    default:
+        break;
+    }
+
+    return result;
+}
+
+#endif // NVRAM_ENULATION_HOST_BACKUP
 /**
  * find_entry_with_vs_id
  *
@@ -182,6 +267,20 @@ uint16_t nvram_emulation_write(uint16_t vs_id, uint16_t data_length, uint8_t *p_
         /* Update data content. */
         memcpy((void *) &p_entry->p_data[0], (void *) p_data, data_length);
 
+#if NVRAM_EMULATION_HCI
+        /* Inform Host device. */
+        WICED_BT_TRACE("[%s] inform host nvram update vs_id 0x%x len %d\n", __FUNCTION__, vs_id, data_length);
+        *p_status = wiced_transport_send_data(HCI_CONTROL_EVENT_NVRAM_DATA,
+                                        (uint8_t *)&p_entry->vs_id,
+                                        sizeof(vs_id) + data_length);
+        if (*p_status != WICED_SUCCESS)
+        {
+            /* fail, delete entry due to unsync */
+            WICED_BT_TRACE("wiced_transport_send_data update failed, deleting entry\n");
+            nvram_emulation_delete(vs_id, p_status);
+            return 0;
+        }
+#endif
         *p_status = WICED_SUCCESS;
         return p_entry->length;
     }
@@ -198,6 +297,19 @@ uint16_t nvram_emulation_write(uint16_t vs_id, uint16_t data_length, uint8_t *p_
     p_entry->vs_id = vs_id;
     p_entry->length = data_length;
     memcpy((void *) &p_entry->p_data[0], (void *) p_data, data_length);
+#if NVRAM_EMULATION_HCI
+    /* Inform Host device. */
+    WICED_BT_TRACE("[%s] inform host nvram update vs_id 0x%x len %d\n", __FUNCTION__, vs_id, data_length);
+    *p_status = wiced_transport_send_data(HCI_CONTROL_EVENT_NVRAM_DATA,
+                                    (uint8_t *)&p_entry->vs_id,
+                                    sizeof(vs_id) + data_length);
+    if (*p_status != WICED_SUCCESS)
+    {
+        nvram_emulation_delete(vs_id, p_status);
+        *p_status = WICED_NO_MEMORY;
+        return 0;
+    }
+#endif
     *p_status = WICED_SUCCESS;
     return p_entry->length;
 }

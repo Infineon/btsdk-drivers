@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2023, Cypress Semiconductor Corporation (an Infineon company) or
+ * Copyright 2016-2024, Cypress Semiconductor Corporation (an Infineon company) or
  * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
@@ -83,11 +83,17 @@ extern "C" {
 
 #include <stddef.h>
 
+#ifndef INLINE
 #define INLINE static inline
+#endif
 
 #ifndef ASSERT
+#ifdef MW_CORE_LIB
 #include "cy_utils.h"
 #define ASSERT(x) CY_ASSERT(x)
+#else
+#define ASSERT(x)
+#endif
 #endif
 
 typedef struct slist_node_t {

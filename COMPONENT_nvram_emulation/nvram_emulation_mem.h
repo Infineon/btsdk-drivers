@@ -1,5 +1,5 @@
 /*
- * Copyright 2023, Cypress Semiconductor Corporation (an Infineon company) or
+ * Copyright 2023-2024, Cypress Semiconductor Corporation (an Infineon company) or
  * an affiliate of Cypress Semiconductor Corporation.  All rights reserved.
  *
  * This software, including source code, documentation and related
@@ -58,8 +58,8 @@
 ***********************************************************************/
 typedef struct
 {
-    uint16_t vs_id;
     uint16_t length;
+    uint16_t vs_id;
     uint8_t p_data[];
 } nvram_emulation_entry_t;
 
@@ -74,6 +74,24 @@ typedef struct
 /*******************************************************************************
 *  Public Function Declaration
 *******************************************************************************/
+
+#if NVRAM_EMULATION_HCI
+#include "wiced_transport.h"
+#include "hci_control_api.h"
+/**
+ * wiced_platform_transport_rx_data_handler
+ *
+ * Callback registered by the application to receive the incoming HCI UART data.
+ *
+ * @param[in] op_code   : operation code for the incoming HCI data (refer to hci_control_api.h)
+ * @param[in] p_data    : Pointer to the received data for the op_code
+ * @param[in] data_len  : length of the data pointed to by p_data in bytes
+ */
+
+wiced_result_t nvram_emulation_transport_status_handler( wiced_transport_type_t type );
+uint32_t nvram_emulation_transport_rx_data_handler(uint8_t *p_buffer, uint32_t length);
+
+#endif
 
 /**********************************************************************
 * nvram_emulation_mem_init - initialize pools or heap for allocation/free
@@ -127,6 +145,11 @@ void nvram_emulation_delete(uint16_t vs_id, wiced_result_t *p_status);
 /** for debug */
 void nvram_emulation_print_state(void);
 
+typedef struct
+{
+    uint16_t size;
+    uint16_t num;
+} nvram_emulation_mem_buf_cfg_t;
 
 /* @} */
 #endif // NVRAM_EMULATION_H
